@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Roblox Cloud Navigator</title>
+    <script src="{{ url_for('static', path='/js/tailwind.js') }}"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 flex flex-col h-screen">
+
+    <div class="bg-gray-800 p-4 border-b border-gray-700 flex gap-4 items-end">
+        <div class="flex-1">
+            <label class="block text-xs text-gray-400 uppercase font-bold">Universe ID</label>
+            <input id="u_id" type="text" placeholder="Enter Universe ID" class="w-full bg-gray-900 border border-gray-600 p-2 rounded mt-1">
+        </div>
+        <div class="flex-1">
+            <label class="block text-xs text-gray-400 uppercase font-bold">API Key</label>
+            <input id="api_key" type="password" placeholder="Paste Key Here" class="w-full bg-gray-900 border border-gray-600 p-2 rounded mt-1">
+        </div>
+        <div class="flex-1">
+            <label class="block text-xs text-gray-400 uppercase font-bold">Available DataStores</label>
+            <select id="ds_name" onchange="fetchEntries()" class="w-full bg-gray-900 border border-gray-600 p-2 rounded mt-1">
+                <option value="">Connect to see DataStores</option>
+            </select>
+        </div>
+        <button id="connectBtn" onclick="fetchDataStores()" class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded font-bold transition">Connect & List</button>
+    </div>
+
+    <div class="flex flex-1 overflow-hidden">
+        <div class="w-1/4 bg-gray-800 border-r border-gray-700 flex flex-col">
+            <div class="p-4 border-b border-gray-700 flex gap-2">
+                <input id="searchBar" onkeyup="filterKeys()" type="text" placeholder="Search keys..." class="flex-1 bg-gray-900 border border-gray-600 p-2 rounded text-sm">
+                <button onclick="createNewEntry()" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded font-bold text-lg" title="New Entry">+</button>
+            </div>
+            <div id="keyList" class="flex-1 overflow-y-auto p-2">
+                <p class="text-gray-500 text-center mt-10 italic">No entries loaded</p>
+            </div>
+        </div>
+
+        <div class="flex-1 flex flex-col p-6 bg-gray-900">
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex flex-col">
+                    <h2 id="currentKey" class="text-xl font-mono text-blue-400">No Key Selected</h2>
+                    <span id="entryCount" class="text-xs text-gray-500"></span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="deleteData()" class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded font-bold transition">Delete Key</button>
+                    <button onclick="saveData()" class="bg-green-600 hover:bg-green-500 px-6 py-2 rounded font-bold transition">Save to Cloud</button>
+                </div>
+            </div>
+            <textarea id="jsonEditor" class="flex-1 bg-gray-800 border border-gray-700 p-4 font-mono text-sm text-green-400 rounded focus:ring-2 focus:ring-blue-500 outline-none shadow-inner"></textarea>
+        </div>
+    </div>
+
+    <div id="modalOverlay" class="fixed inset-0 bg-black/70 hidden z-40 backdrop-blur-sm flex items-center justify-center p-4">
+
+        <div id="createModal" class="bg-gray-800 border border-gray-700 rounded-lg shadow-2xl w-full max-w-md hidden">
+            <div class="p-6 border-b border-gray-700">
+                <h3 class="text-xl font-bold text-blue-400">Create New Entry</h3>
+                <p class="text-gray-400 text-sm mt-1">Enter a unique ID for the new DataStore key.</p>
+            </div>
+            <div class="p-6">
+                <input id="modalInputKey" type="text" placeholder="e.g., Player_12345" class="w-full bg-gray-900 border border-gray-600 p-3 rounded text-white focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div class="p-4 bg-gray-850 flex justify-end gap-3 rounded-b-lg">
+                <button onclick="closeModal()" class="px-4 py-2 text-gray-400 hover:text-white transition">Cancel</button>
+                <button onclick="submitCreateModal()" class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded font-bold transition">Create Key</button>
+            </div>
+        </div>
+
+        <div id="alertModal" class="bg-gray-800 border border-gray-700 rounded-lg shadow-2xl w-full max-w-sm hidden">
+            <div class="p-6 text-center">
+                <div id="alertIcon" class="mb-4 text-4xl text-yellow-500">⚠️</div>
+                <h3 id="alertTitle" class="text-xl font-bold text-white">Are you sure?</h3>
+                <p id="alertMessage" class="text-gray-400 mt-2 text-sm"></p>
+            </div>
+            <div class="p-4 flex gap-3">
+                <button id="alertCancelBtn" onclick="closeModal()" class="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded transition">Cancel</button>
+                <button id="alertConfirmBtn" class="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 rounded font-bold transition">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedKey = "";
+
+        // 1. New function to discover DataStores
+        async function fetchDataStores() {
+            const btn = document.getElementById('connectBtn');
+            const dsDropdown = document.getElementById('ds_name');
+            const u_id = document.getElementById('u_id').value;
+            const api_key = document.getElementById('api_key').value;
+
+            if(!u_id || !api_key) return alert("Please enter Universe ID and API Key");
+
+            btn.innerText = "Finding Stores...";
+            dsDropdown.innerHTML = "<option>Fetching...</option>";
+
+            try {
+                const res = await fetch('/list-datastores', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ universe_id: u_id, api_key: api_key })
+                });
+                const stores = await res.json();
+
+                dsDropdown.innerHTML = "";
+                if(stores.length > 0) {
+                    stores.forEach(ds => {
+                        const storeName = ds.path.split('/').pop(); // Extract name from path
+                        const opt = document.createElement('option');
+                        opt.value = storeName;
+                        opt.innerText = storeName;
+                        dsDropdown.appendChild(opt);
+                    });
+                    // Immediately fetch entries for the first store found
+                    fetchEntries();
+                } else {
+                    dsDropdown.innerHTML = "<option value=''>No DataStores Found</option>";
+                }
+            } catch(e) {
+                alert("Error connecting to Roblox Cloud.");
+            }
+            btn.innerText = "Connect & List";
+        }
+
+        async function fetchEntries() {
+            const container = document.getElementById('keyList');
+            container.innerHTML = "<p class='text-gray-500 text-center mt-10'>Loading entries...</p>";
+
+            const res = await fetch('/list-entries', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    universe_id: document.getElementById('u_id').value,
+                    datastore_name: document.getElementById('ds_name').value,
+                    api_key: document.getElementById('api_key').value
+                })
+            });
+            const entries = await res.json();
+
+            container.innerHTML = "";
+            if(entries && entries.length > 0) {
+                document.getElementById('entryCount').innerText = `${entries.length} keys found`;
+                entries.forEach(e => {
+                    const b = document.createElement('button');
+                    b.innerText = e.id;
+                    b.className = "key-btn w-full text-left p-2 hover:bg-gray-700 rounded text-sm mb-1 truncate transition";
+                    b.onclick = () => loadData(e.id);
+                    container.appendChild(b);
+                });
+            } else {
+                container.innerHTML = "<p class='text-red-400 text-center p-4'>No entries found in this store.</p>";
+            }
+        }
+
+        async function loadData(key) {
+            selectedKey = key;
+            document.getElementById('currentKey').innerText = "editing: " + key;
+
+            const res = await fetch('/get-entry', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    universe_id: document.getElementById('u_id').value,
+                    datastore_name: document.getElementById('ds_name').value,
+                    api_key: document.getElementById('api_key').value,
+                    key_id: key
+                })
+            });
+            const data = await res.json();
+            document.getElementById('jsonEditor').value = JSON.stringify(data, null, 4);
+        }
+
+        async function saveData() {
+            if(!selectedKey) return alert("Select a key first!");
+            try {
+                const updatedData = JSON.parse(document.getElementById('jsonEditor').value);
+                const res = await fetch('/save-entry', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        universe_id: document.getElementById('u_id').value,
+                        datastore_name: document.getElementById('ds_name').value,
+                        api_key: document.getElementById('api_key').value,
+                        key_id: selectedKey,
+                        data: updatedData
+                    })
+                });
+                if(res.ok) alert("Data successfully written to Roblox Cloud!");
+            } catch(e) { alert("Invalid JSON format!"); }
+        }
+
+        function filterKeys() {
+            const query = document.getElementById('searchBar').value.toLowerCase();
+            document.querySelectorAll('.key-btn').forEach(btn => {
+                btn.style.display = btn.innerText.toLowerCase().includes(query) ? 'block' : 'none';
+            });
+        }
+
+        async function deleteData() {
+            if(!selectedKey) return showCustomAlert("Error", "Select a key first!");
+
+            showCustomAlert(
+                "Delete Entry",
+                `Are you sure you want to permanently delete '${selectedKey}'?`,
+                true,
+                async () => {
+                    const res = await fetch('/delete-entry', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            universe_id: document.getElementById('u_id').value,
+                            datastore_name: document.getElementById('ds_name').value,
+                            api_key: document.getElementById('api_key').value,
+                            key_id: selectedKey
+                        })
+                    });
+                    const result = await res.json();
+                    if(result.success) {
+                        document.getElementById('jsonEditor').value = "";
+                        document.getElementById('currentKey').innerText = "No Key Selected";
+                        selectedKey = "";
+                        fetchEntries();
+                    }
+                }
+            );
+        }
+
+        async function submitCreateModal() {
+            const newKey = document.getElementById('modalInputKey').value;
+            if (!newKey) return;
+
+            closeModal();
+
+            const initialData = { "created": true, "timestamp": new Date().toISOString() };
+
+            const res = await fetch('/create-entry', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    universe_id: document.getElementById('u_id').value,
+                    datastore_name: document.getElementById('ds_name').value,
+                    api_key: document.getElementById('api_key').value,
+                    key_id: newKey,
+                    data: initialData
+                })
+            });
+
+            const result = await res.json();
+            if(result.success) {
+                showCustomAlert("Success", `Key '${newKey}' has been created.`);
+                fetchEntries();
+            } else {
+                showCustomAlert("Error", "Failed to create: " + result.error);
+            }
+        }
+
+        // --- MODAL HELPERS ---
+        function openModal(modalId) {
+            document.getElementById('modalOverlay').classList.remove('hidden');
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.add('hidden');
+            document.getElementById('createModal').classList.add('hidden');
+            document.getElementById('alertModal').classList.add('hidden');
+        }
+
+        // Custom Alert Replacement
+        function showCustomAlert(title, message, isDelete = false, onConfirm = null) {
+            document.getElementById('alertTitle').innerText = title;
+            document.getElementById('alertMessage').innerText = message;
+            document.getElementById('alertIcon').innerText = isDelete ? "🗑️" : "⚠️";
+
+            const confirmBtn = document.getElementById('alertConfirmBtn');
+            confirmBtn.className = isDelete ? "flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 rounded font-bold transition" : "flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded font-bold transition";
+
+            confirmBtn.onclick = () => {
+                if(onConfirm) onConfirm();
+                closeModal();
+            };
+
+            openModal('alertModal');
+        }
+
+        // Triggered by the "+" button
+        function createNewEntry() {
+            document.getElementById('modalInputKey').value = "";
+            openModal('createModal');
+        }
+
+    </script>
+</body>
+</html>
