@@ -171,7 +171,8 @@
         }
 
         async function saveData() {
-            if(!selectedKey) return alert("Select a key first!");
+
+            if(!selectedKey) return showCustomAlert("Error", "Select a key first!");
             try {
                 const updatedData = JSON.parse(document.getElementById('jsonEditor').value);
                 const res = await fetch('/save-entry', {
@@ -185,8 +186,16 @@
                         data: updatedData
                     })
                 });
-                if(res.ok) alert("Data successfully written to Roblox Cloud!");
-            } catch(e) { alert("Invalid JSON format!"); }
+
+                if(res.ok) {
+                    // Use the custom modal for success
+                    showCustomAlert("Success", "Data successfully written to Roblox Cloud!");
+                } else {
+                    showCustomAlert("Error", "Failed to save data. Check your API permissions.");
+                }
+            } catch(e) {
+                showCustomAlert("Invalid JSON", "Please check your format! The data must be valid JSON.");
+            }
         }
 
         function filterKeys() {
