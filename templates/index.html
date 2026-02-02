@@ -89,7 +89,7 @@
             const u_id = document.getElementById('u_id').value;
             const api_key = document.getElementById('api_key').value;
 
-            if(!u_id || !api_key) return alert("Please enter Universe ID and API Key");
+            if(!u_id || !api_key) return showCustomAlert("Error", "Please enter Universe ID and API Key");
 
             btn.innerText = "Finding Stores...";
             dsDropdown.innerHTML = "<option>Fetching...</option>";
