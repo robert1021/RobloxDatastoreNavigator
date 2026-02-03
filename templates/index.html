@@ -15,25 +15,38 @@
             <label class="block text-xs text-gray-400 uppercase font-bold">API Key</label>
             <input id="api_key" type="password" placeholder="Paste Key Here" class="w-full bg-gray-900 border border-gray-600 p-2 rounded mt-1">
         </div>
-        <div class="flex-1">
-            <label class="block text-xs text-gray-400 uppercase font-bold">Available DataStores</label>
-            <select id="ds_name" onchange="fetchEntries()" class="w-full bg-gray-900 border border-gray-600 p-2 rounded mt-1">
-                <option value="">Connect to see DataStores</option>
-            </select>
-        </div>
+
         <button id="connectBtn" onclick="fetchDataStores()" class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded font-bold transition">Connect & List</button>
     </div>
 
     <div class="flex flex-1 overflow-hidden">
+
+
         <div class="w-1/4 bg-gray-800 border-r border-gray-700 flex flex-col">
+            <div class="p-4 border-b border-gray-700 bg-gray-800/50">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="text-[10px] text-gray-500 uppercase font-black tracking-widest">Available DataStores</label>
+                    <button onclick="promptNewDataStore()" class="text-[10px] text-blue-400 hover:text-blue-300 font-bold uppercase tracking-tighter transition">
+                        + Create New
+                    </button>
+                </div>
+                <select id="ds_name" onchange="fetchEntries()" class="w-full bg-gray-900 border border-gray-600 p-2 rounded text-sm text-blue-300 font-mono focus:ring-1 focus:ring-blue-500 outline-none">
+                    <option value="">Connect to see DataStores</option>
+                </select>
+            </div>
+
             <div class="p-4 border-b border-gray-700 flex gap-2">
                 <input id="searchBar" onkeyup="filterKeys()" type="text" placeholder="Search keys..." class="flex-1 bg-gray-900 border border-gray-600 p-2 rounded text-sm">
                 <button onclick="createNewEntry()" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded font-bold text-lg" title="New Entry">+</button>
             </div>
+
             <div id="keyList" class="flex-1 overflow-y-auto p-2">
                 <p class="text-gray-500 text-center mt-10 italic">No entries loaded</p>
             </div>
         </div>
+
+
+
 
         <div class="flex-1 flex flex-col p-6 bg-gray-900">
             <div class="flex justify-between items-center mb-4">
@@ -260,6 +273,36 @@
                 fetchEntries();
             } else {
                 showCustomAlert("Error", "Failed to create: " + result.error);
+            }
+        }
+
+        function promptNewDataStore() {
+            // We can reuse your existing custom alert logic or a simple prompt
+            const newDSName = prompt("Enter new DataStore name:");
+
+            if (newDSName) {
+                const dsDropdown = document.getElementById('ds_name');
+
+                // Check if it already exists in the list
+                const exists = Array.from(dsDropdown.options).some(opt => opt.value === newDSName);
+
+                if (!exists) {
+                    const opt = document.createElement('option');
+                    opt.value = newDSName;
+                    opt.innerText = newDSName + " (New)";
+                    dsDropdown.prepend(opt); // Put it at the top
+                    dsDropdown.value = newDSName;
+
+                    // Clear the keys list because this is a new store
+                    document.getElementById('keyList').innerHTML = "<p class='text-blue-400 text-center mt-10 italic'>New DataStore selected. Create a key to initialize it.</p>";
+                    document.getElementById('entryCount').innerText = "0 keys found";
+                    selectedKey = "";
+                    document.getElementById('jsonEditor').value = "";
+                    document.getElementById('currentKey').innerText = "New DataStore";
+                } else {
+                    dsDropdown.value = newDSName;
+                    fetchEntries();
+                }
             }
         }
 
