@@ -26,7 +26,7 @@
             <div class="p-4 border-b border-gray-700 bg-gray-800/50">
                 <div class="flex justify-between items-center mb-2">
                     <label class="text-[10px] text-gray-500 uppercase font-black tracking-widest">Available DataStores</label>
-                    <button onclick="promptNewDataStore()" class="text-[10px] text-blue-400 hover:text-blue-300 font-bold uppercase tracking-tighter transition">
+                    <button onclick="createNewDataStore()" class="text-[10px] text-blue-400 hover:text-blue-300 font-bold uppercase tracking-tighter transition">
                         + Create New
                     </button>
                 </div>
@@ -90,6 +90,21 @@
                 <button id="alertConfirmBtn" class="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 rounded font-bold transition">Confirm</button>
             </div>
         </div>
+
+        <div id="dsModal" class="bg-gray-800 border border-gray-700 rounded-lg shadow-2xl w-full max-w-md hidden">
+            <div class="p-6 border-b border-gray-700">
+                <h3 class="text-xl font-bold text-blue-400">New DataStore</h3>
+                <p class="text-gray-400 text-sm mt-1">Enter the name of the DataStore you want to initialize.</p>
+            </div>
+            <div class="p-6">
+                <input id="modalInputDS" type="text" placeholder="e.g., PlayerData_V2" class="w-full bg-gray-900 border border-gray-600 p-3 rounded text-white focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div class="p-4 bg-gray-850 flex justify-end gap-3 rounded-b-lg">
+                <button onclick="closeModal()" class="px-4 py-2 text-gray-400 hover:text-white transition">Cancel</button>
+                <button onclick="submitDSModal()" class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded font-bold transition">Create DataStore</button>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -276,36 +291,6 @@
             }
         }
 
-        function promptNewDataStore() {
-            // We can reuse your existing custom alert logic or a simple prompt
-            const newDSName = prompt("Enter new DataStore name:");
-
-            if (newDSName) {
-                const dsDropdown = document.getElementById('ds_name');
-
-                // Check if it already exists in the list
-                const exists = Array.from(dsDropdown.options).some(opt => opt.value === newDSName);
-
-                if (!exists) {
-                    const opt = document.createElement('option');
-                    opt.value = newDSName;
-                    opt.innerText = newDSName + " (New)";
-                    dsDropdown.prepend(opt); // Put it at the top
-                    dsDropdown.value = newDSName;
-
-                    // Clear the keys list because this is a new store
-                    document.getElementById('keyList').innerHTML = "<p class='text-blue-400 text-center mt-10 italic'>New DataStore selected. Create a key to initialize it.</p>";
-                    document.getElementById('entryCount').innerText = "0 keys found";
-                    selectedKey = "";
-                    document.getElementById('jsonEditor').value = "";
-                    document.getElementById('currentKey').innerText = "New DataStore";
-                } else {
-                    dsDropdown.value = newDSName;
-                    fetchEntries();
-                }
-            }
-        }
-
         // --- MODAL HELPERS ---
         function openModal(modalId) {
             document.getElementById('modalOverlay').classList.remove('hidden');
@@ -316,6 +301,7 @@
             document.getElementById('modalOverlay').classList.add('hidden');
             document.getElementById('createModal').classList.add('hidden');
             document.getElementById('alertModal').classList.add('hidden');
+            document.getElementById('dsModal').classList.add('hidden');
         }
 
         // Custom Alert Replacement
@@ -339,6 +325,41 @@
         function createNewEntry() {
             document.getElementById('modalInputKey').value = "";
             openModal('createModal');
+        }
+
+        function createNewDataStore() {
+            document.getElementById('modalInputDS').value = "";
+            openModal('dsModal');
+        }
+
+        // Handles the submission from the new modal
+        function submitDSModal() {
+            const newDSName = document.getElementById('modalInputDS').value.trim();
+
+            if (!newDSName) return;
+
+            const dsDropdown = document.getElementById('ds_name');
+            const exists = Array.from(dsDropdown.options).some(opt => opt.value === newDSName);
+
+            if (!exists) {
+                const opt = document.createElement('option');
+                opt.value = newDSName;
+                opt.innerText = newDSName + " (New)";
+                dsDropdown.prepend(opt);
+                dsDropdown.value = newDSName;
+
+                // UI Feedback for the user
+                document.getElementById('keyList').innerHTML = "<p class='text-blue-400 text-center mt-10 italic'>New DataStore selected. Create a key to initialize it on Roblox.</p>";
+                document.getElementById('entryCount').innerText = "0 keys found";
+                selectedKey = "";
+                document.getElementById('jsonEditor').value = "";
+                document.getElementById('currentKey').innerText = "New DataStore: " + newDSName;
+            } else {
+                dsDropdown.value = newDSName;
+                fetchEntries();
+            }
+
+            closeModal();
         }
 
     </script>
