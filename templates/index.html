@@ -26,9 +26,15 @@
             <div class="p-4 border-b border-gray-700 bg-gray-800/50">
                 <div class="flex justify-between items-center mb-2">
                     <label class="text-[10px] text-gray-500 uppercase font-black tracking-widest">Available DataStores</label>
-                    <button onclick="createNewDataStore()" class="text-[10px] text-blue-400 hover:text-blue-300 font-bold uppercase tracking-tighter transition">
-                        + Create New
-                    </button>
+
+                    <div class="flex gap-3">
+                        <button onclick="confirmDeleteDataStore()" class="text-[10px] text-red-500 hover:text-red-400 font-bold uppercase tracking-tighter transition" title="Delete Current DataStore">
+                            Delete
+                        </button>
+                        <button onclick="createNewDataStore()" class="text-[10px] text-blue-400 hover:text-blue-300 font-bold uppercase tracking-tighter transition">
+                            + Create New
+                        </button>
+                    </div>
                 </div>
                 <select id="ds_name" onchange="fetchEntries()" class="w-full bg-gray-900 border border-gray-600 p-2 rounded text-sm text-blue-300 font-mono focus:ring-1 focus:ring-blue-500 outline-none">
                     <option value="">Connect to see DataStores</option>
@@ -360,6 +366,56 @@
             }
 
             closeModal();
+        }
+
+
+        // Opens the confirmation modal
+        function confirmDeleteDataStore() {
+            const dsName = document.getElementById('ds_name').value;
+
+            if (!dsName) {
+                return showCustomAlert("Error", "Please select a DataStore from the list first.");
+            }
+
+            showCustomAlert(
+                "Permanent Deletion",
+                `Are you sure you want to delete the entire DataStore '${dsName}'? This will wipe ALL keys and cannot be undone.`,
+                true, // makes the button red
+                async () => {
+                    await executeDeleteDataStore(dsName);
+                }
+            );
+        }
+
+        // Communicates with your FastAPI backend
+        async function executeDeleteDataStore(dsName) {
+            const u_id = document.getElementById('u_id').value;
+            const api_key = document.getElementById('api_key').value;
+
+            try {
+                const res = await fetch('/delete-datastore', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        universe_id: u_id,
+                        datastore_name: dsName,
+                        api_key: api_key
+                    })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    showCustomAlert("Success", `DataStore '${dsName}' has been deleted.`);
+                    // Reset the UI and refresh the list
+                    document.getElementById('keyList').innerHTML = "<p class='text-gray-500 text-center mt-10 italic'>DataStore deleted.</p>";
+                    fetchDataStores();
+                } else {
+                    showCustomAlert("Error", result.error || "Failed to delete DataStore.");
+                }
+            } catch (e) {
+                showCustomAlert("Error", "Could not connect to backend.");
+            }
         }
 
     </script>

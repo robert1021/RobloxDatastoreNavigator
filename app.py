@@ -100,6 +100,18 @@ async def delete_entry(request: Request):
     # 204 No Content is the standard success code for DELETE in Cloud v2
     return {"success": r.status_code in [200, 204]}
 
+
+@app.post("/delete-datastore")
+async def delete_datastore(request: Request):
+    body = await request.json()
+    # Cloud v2 URL for the DataStore resource itself
+    url = f"https://apis.roblox.com/cloud/v2/universes/{body['universe_id']}/data-stores/{body['datastore_name']}"
+
+    r = requests.delete(url, headers={"x-api-key": body['api_key']})
+
+    # 204 No Content or 200 OK indicates the DataStore was successfully deleted
+    return {"success": r.status_code in [200, 204], "status": r.status_code}
+
 if __name__ == "__main__":
     # 1. Start FastAPI in a background thread
     t = threading.Thread(target=run_fastapi, daemon=True)
